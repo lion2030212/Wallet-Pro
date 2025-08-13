@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>محفظة الدخل والمصروفات المتعددة</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav id="sideMenu" class="side-menu">
+        <div class="side-menu-header">
+            <span class="material-icons">account_balance_wallet</span>
+            <h3>القائمة</h3>
+            <span class="material-icons close-btn" onclick="toggleMenu()">close</span>
+        </div>
+        <ul>
+            <li onclick="showTab('home');toggleMenu();"><span class="material-icons">home</span> الرئيسية</li>
+            <li onclick="openManageAccountsModal();toggleMenu();"><span class="material-icons">account_balance</span> إدارة الحسابات</li>
+            <li onclick="showTab('transactions');toggleMenu();"><span class="material-icons">list_alt</span> المعاملات</li>
+            <li onclick="openCategoriesModal();toggleMenu();"><span class="material-icons">category</span> التصنيفات</li>
+            <li onclick="openBudgetModal();toggleMenu();"><span class="material-icons">bar_chart</span> الميزانية</li>
+            <li onclick="openStatsModal();toggleMenu();"><span class="material-icons">pie_chart</span> الإحصائيات</li>
+            <li onclick="openBackupModal();toggleMenu();"><span class="material-icons">cloud_download</span> النسخة الاحتياطية</li>
+            <li onclick="openProfileModal();toggleMenu();"><span class="material-icons">person</span> الملف</li>
+        </ul>
+    </nav>
+    <button id="menuBtn" class="menu-btn" onclick="toggleMenu()">
+        <span class="material-icons">menu</span>
+    </button>
+    <main class="main-content">
+        <section id="home" class="tab active">
+            <div class="home-header">
+                <span class="material-icons notification-bell" onclick="openReminderModal()">notifications</span>
+                <select id="homeAccountSelect" onchange="changeHomeAccount(this.value)"></select>
+                <div class="header-spacer"></div> 
+            </div>
+
+            <div class="balance-card-compact">
+                <div class="card-options-container">
+                     <button class="options-btn" onclick="toggleDropdown(this)"><span class="material-icons">more_vert</span></button>
+                     <div class="options-dropdown">
+                        <button onclick="setHomeBalancePeriod('daily')">يومي</button>
+                        <button onclick="setHomeBalancePeriod('monthly')">شهري</button>
+                        <button onclick="setHomeBalancePeriod('yearly')">سنوي</button>
+                    </div>
+                </div>
+                <div class="balance-info">
+                    <span class="balance-title-compact">الرصيد الإجمالي</span>
+                    <span class="balance-value-compact" id="totalBalance">0.00</span>
+                    <span class="balance-currency-compact" id="totalCurrency"></span>
+                </div>
+                <div class="period-summary-compact">
+                    <div>
+                        <span class="label" id="homeIncomeLabel">الدخل الشهري</span>
+                        <span class="amount income" id="currentPeriodIncome">0.00</span>
+                    </div>
+                    <div>
+                        <span class="label" id="homeExpenseLabel">المصروف الشهري</span>
+                        <span class="amount expense" id="currentPeriodExpense">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analysis-card">
+                <div class="analysis-header">
+                    <span class="analysis-title" id="categoryChartTitle">المصروفات حسب التصنيف (هذا الشهر)</span>
+                     <div class="card-options-container">
+                         <button class="options-btn" onclick="toggleDropdown(this)"><span class="material-icons">more_vert</span></button>
+                         <div class="options-dropdown">
+                            <button onclick="setCategoryChartPeriod('daily')">اليوم</button>
+                            <button onclick="setCategoryChartPeriod('thisMonth')">هذا الشهر</button>
+                            <button onclick="setCategoryChartPeriod('lastMonth')">الشهر الماضي</button>
+                            <button onclick="setCategoryChartPeriod('thisYear')">هذه السنة</button>
+                            <button onclick="setCategoryChartPeriod('lastYear')">السنة الماضية</button>
+                            <button onclick="openCustomDateModal()">حسب المدة...</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="categoryBreakdownChart"></canvas>
+                </div>
+            </div>
+
+            <div class="recent-transactions-card">
+                <div class="analysis-header">
+                    <span class="analysis-title">أحدث المعاملات</span>
+                    <a href="#" onclick="showTab('transactions')" class="view-all-link">عرض الكل</a>
+                </div>
+                <div id="recentTransactionsList" class="recent-transactions-list">
+                    </div>
+            </div>
+        </section>
+
+        <section id="transactions" class="tab transactions-tab-view">
+            <div class="transactions-page-header">
+                <div class="header-top-row">
+                    <button class="back-arrow-btn" onclick="showTab('home')"><span class="material-icons">arrow_forward</span></button>
+                    <div class="header-center">
+                        <select id="transactionsAccountSelect" onchange="changeTransactionsAccount(this.value)"></select>
+                    </div>
+                    <div class="header-right">
+                         <div class="transactions-controls">
+                            <span id="searchActiveIndicator" class="search-active-indicator material-icons" onclick="resetSearch()" style="display:none;">filter_alt_off</span>
+                             <div class="sort-dropdown-container">
+                                <button class="sort-btn" onclick="toggleSortDropdown()"><span class="material-icons">more_vert</span></button>
+                                <div id="transactionsSortDropdown" class="sort-dropdown-content">
+                                    <button data-sort-value="date-desc">التاريخ (الأحدث أولاً)</button>
+                                    <button data-sort-value="date-asc">التاريخ (الأقدم أولاً)</button>
+                                    <button data-sort-value="amount-desc">المبلغ (الأعلى أولاً)</button>
+                                    <button data-sort-value="amount-asc">المبلغ (الأقل أولاً)</button>
+                                    <button data-sort-value="category-asc">التصنيف (أ-ي)</button>
+                                    <button data-sort-value="type-asc">النوع</button>
+                                    <button data-sort-value="selected-desc">غير محدد</button>
+                                </div>
+                            </div>
+                            <button class="search-btn" onclick="openSearchModal()"><span class="material-icons">search</span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="year-navigator">
+                    <button onclick="changeTransactionPeriod(-1)"><span class="material-icons">chevron_right</span></button>
+                    <span id="currentTransactionPeriodDisplay" onclick="toggleTransactionPeriodSelector()">2024</span>
+                    <button onclick="changeTransactionPeriod(1)"><span class="material-icons">chevron_left</span></button>
+                </div>
+                <div class="period-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">رصيد</span>
+                        <span class="summary-value" id="transactionsBalance">0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">الصافي</span>
+                        <span class="summary-value" id="transactionsPeriodTotal">0.00</span>
+                    </div>
+                </div>
+                <div id="transactionPeriodSelector" class="period-selector-dropdown" style="display:none;">
+                    <button onclick="setTransactionsPeriod('daily');">يومي</button>
+                    <button onclick="setTransactionsPeriod('monthly');">شهري</button>
+                    <button onclick="setTransactionsPeriod('yearly');">سنوي</button>
+                </div>
+            </div>
+
+            <div id="transactionsListContainer" class="transactions-list-container">
+                </div>
+        </section>
+        
+    </main>
+    <nav class="bottom-nav">
+        <button onclick="showTab('home')" id="navHome"><span class="material-icons">home</span><span>الرئيسية</span></button>
+        <button onclick="openManageAccountsModal()" id="navAccounts"><span class="material-icons">account_balance</span><span>الحسابات</span></button>
+        <button onclick="showTab('transactions')" id="navTransactions"><span class="material-icons">list_alt</span><span>المعاملات</span></button>
+        <button onclick="openBudgetModal()" id="navBudget"><span class="material-icons">bar_chart</span><span>الميزانية</span></button>
+        <button onclick="openProfileModal()" id="navProfile"><span class="material-icons">person</span><span>الملف</span></button>
+    </nav>
+
+    <div class="fab-container">
+        <button class="fab" onclick="toggleFabMenu()"><span class="material-icons">add</span></button>
+        <div class="fab-options">
+            <button class="fab-option expense" onclick="openTransactionModal('مصروف'); toggleFabMenu();">
+                <span class="material-icons">remove</span> مصروف
+            </button>
+            <button class="fab-option income" onclick="openTransactionModal('دخل'); toggleFabMenu();">
+                <span class="material-icons">add</span> دخل
+            </button>
+        </div>
+    </div>
+
+
+    <div id="addTransactionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeTransactionModal()">&times;</span>
+            <h2>إضافة معاملة جديدة</h2>
+            <form id="transactionForm" class="form-card">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="type">النوع:</label>
+                        <select id="type">
+                            <option value="دخل">دخل</option>
+                            <option value="مصروف">مصروف</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="amount">المبلغ:</label>
+                        <input type="number" id="amount" placeholder="المبلغ" required min="0.01" step="0.01">
+                    </div>
+                    <div class="form-field">
+                        <label for="category">التصنيف:</label>
+                        <select id="category" required></select>
+                    </div>
+                    <div class="form-field">
+                        <label for="date">التاريخ:</label>
+                        <input type="date" id="date" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="accountSelect">الحساب:</label>
+                        <select id="accountSelect" required></select>
+                    </div>
+                    <div class="form-field">
+                        <label for="from">من (اختياري):</label>
+                        <input type="text" id="from" placeholder="مثال: صديق، شركة">
+                    </div>
+                    <div class="form-field full-width">
+                        <label for="note">ملاحظة (اختياري):</label>
+                        <input type="text" id="note" placeholder="ملاحظة (اختياري)">
+                    </div>
+                    <button type="submit" class="full-width"><span class="material-icons">add</span> إضافة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="editTransactionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>تعديل المعاملة</h2>
+            <form id="editTransactionForm">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="editType">النوع:</label>
+                        <select id="editType">
+                            <option value="دخل">دخل</option>
+                            <option value="مصروف">مصروف</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="editAmount">المبلغ:</label>
+                        <input type="number" id="editAmount" required min="0.01" step="0.01">
+                    </div>
+                    <div class="form-field">
+                        <label for="editCategory">التصنيف:</label>
+                        <select id="editCategory" required></select>
+                    </div>
+                    <div class="form-field">
+                        <label for="editDate">التاريخ:</label>
+                        <input type="date" id="editDate" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="editAccountSelect">الحساب:</label>
+                        <select id="editAccountSelect" required></select>
+                    </div>
+                    <div class="form-field">
+                        <label for="editFrom">من (اختياري):</label>
+                        <input type="text" id="editFrom" placeholder="مثال: صديق، شركة">
+                    </div>
+                    <div class="form-field full-width">
+                        <label for="editNote">ملاحظة:</label>
+                        <input type="text" id="editNote">
+                    </div>
+                    <button type="submit" class="full-width"><span class="material-icons">save</span> حفظ التعديل</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="reminderModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeReminderModal()">&times;</span>
+            <h2>تذكير إضافة معاملة</h2>
+            <form id="reminderForm" class="form-card">
+                 <p>اختر وقتًا لتذكيرك يوميًا بإضافة معاملاتك.</p>
+                <div class="form-field full-width">
+                    <label for="reminderTime">وقت التذكير:</label>
+                    <input type="time" id="reminderTime" required>
+                </div>
+                <button type="submit" class="full-width"><span class="material-icons">save</span> حفظ</button>
+                 <button type="button" class="full-width reset-btn" onclick="clearReminder()"><span class="material-icons">notifications_off</span> إلغاء التذكير</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="customDateModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCustomDateModal()">&times;</span>
+            <h2>تحديد فترة مخصصة</h2>
+            <form id="customDateForm" class="form-card">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="customDateFrom">من تاريخ:</label>
+                        <input type="date" id="customDateFrom" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="customDateTo">إلى تاريخ:</label>
+                        <input type="date" id="customDateTo" required>
+                    </div>
+                </div>
+                <button type="submit" class="full-width"><span class="material-icons">check</span> تطبيق</button>
+            </form>
+        </div>
+    </div>
+
+
+    <div id="searchModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSearchModal()">&times;</span>
+            <h2>البحث عن معاملات</h2>
+            <form id="searchForm" class="form-grid">
+                 <div class="form-field">
+                    <label for="searchType">النوع:</label>
+                    <select id="searchType">
+                        <option value="">الكل</option>
+                        <option value="دخل">دخل</option>
+                        <option value="مصروف">مصروف</option>
+                    </select>
+                </div>
+                 <div class="form-field">
+                    <label for="searchCategory">التصنيف:</label>
+                    <select id="searchCategory">
+                        <option value="">الكل</option>
+                        </select>
+                </div>
+                 <div class="form-field">
+                    <label for="searchAccount">الحساب:</label>
+                    <select id="searchAccount">
+                        <option value="">الكل</option>
+                        </select>
+                </div>
+                <div class="form-field">
+                    <label for="searchDateFrom">التاريخ من:</label>
+                    <input type="date" id="searchDateFrom">
+                </div>
+                <div class="form-field">
+                    <label for="searchDateTo">التاريخ إلى:</label>
+                    <input type="date" id="searchDateTo">
+                </div>
+                <div class="form-field">
+                    <label for="searchFrom">من:</label>
+                    <input type="text" id="searchFrom" placeholder="مصدر المعاملة">
+                </div>
+                <div class="form-field full-width"> <label for="searchNote">ملاحظة:</label>
+                    <input type="text" id="searchNote" placeholder="كلمة في الملاحظة">
+                </div>
+                <div class="form-field">
+                    <label for="searchAmountFrom">المبلغ من:</label>
+                    <input type="number" id="searchAmountFrom" min="0" step="0.01">
+                </div>
+                <div class="form-field">
+                    <label for="searchAmountTo">المبلغ إلى:</label>
+                    <input type="number" id="searchAmountTo" min="0" step="0.01">
+                </div>
+                <button type="submit" class="full-width"><span class="material-icons">search</span> بحث</button>
+                 <button type="button" class="full-width reset-btn" onclick="resetSearch()"><span class="material-icons">refresh</span> إعادة تعيين البحث</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="manageAccountsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeManageAccountsModal()">&times;</span>
+            <h2>إدارة الحسابات</h2>
+            <form id="accountForm" class="form-card">
+                <h3>إضافة حساب جديد</h3>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="accountName">اسم الحساب:</label>
+                        <input type="text" id="accountName" placeholder="اسم الحساب" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="accountCurrency">العملة:</label>
+                        <select id="accountCurrency" required>
+                            <option value="د.إ">درهم إماراتي</option>
+                            <option value="$">دولار أمريكي</option>
+                            <option value="€">يورو</option>
+                            <option value="£">جنيه إسترليني</option>
+                            <option value="ر.س">ريال سعودي</option>
+                            <option value="ج.م">جنيه مصري</option>
+                            <option value="د.ك">دينار كويتي</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="full-width"><span class="material-icons">add</span> إضافة حساب</button>
+                </div>
+            </form>
+            <h3>الحسابات الحالية</h3>
+            <div class="accounts-summary">
+                <p>إجمالي الحساب المحدد: <span id="currentAccountTotal">0.00</span> <span id="currentAccountCurrency"></span></p>
+            </div>
+            <table id="accountsTable">
+                <thead>
+                    <tr>
+                        <th>اسم الحساب</th>
+                        <th>العملة</th>
+                        <th>تحديد</th>
+                        <th>حذف</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="budgetModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBudgetModal()">&times;</span>
+            <h2>تحديد الميزانية</h2>
+            <form id="budgetForm" class="form-card">
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="budgetCategory">التصنيف:</label>
+                        <select id="budgetCategory" required></select>
+                    </div>
+                    <div class="form-field">
+                        <label for="budgetLimit">الحد الأقصى:</label>
+                        <input type="number" id="budgetLimit" placeholder="الحد الأقصى" required min="0.01" step="0.01">
+                    </div>
+                    <div class="form-field full-width">
+                        <label for="budgetAccountSelect">الحساب:</label>
+                        <select id="budgetAccountSelect" required></select>
+                    </div>
+                    <button type="submit" class="full-width"><span class="material-icons">save</span> حفظ الميزانية</button>
+                </div>
+            </form>
+            <h3>الميزانيات المحددة</h3>
+            <table id="budgetTable">
+                <thead>
+                    <tr>
+                        <th>التصنيف</th>
+                        <th>الحد الأقصى</th>
+                        <th>المصروف الحالي</th>
+                        <th>الحساب</th>
+                        <th>تنبيه</th>
+                        <th>حذف</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeProfileModal()">&times;</span>
+            <h2>الملف الشخصي</h2>
+            <p>هنا يمكنك إضافة معلومات الملف الشخصي وإعداداته.</p>
+
+            <div class="theme-selection form-card">
+                <h3>المظهر</h3>
+                <div class="form-field">
+                    <label>
+                        <input type="radio" name="theme" value="system" onchange="setTheme(this.value)">
+                        النظام (تلقائي)
+                    </label>
+                </div>
+                <div class="form-field">
+                    <label>
+                        <input type="radio" name="theme" value="light" onchange="setTheme(this.value)">
+                        فاتح
+                    </label>
+                </div>
+                <div class="form-field">
+                    <label>
+                        <input type="radio" name="theme" value="dark" onchange="setTheme(this.value)">
+                        داكن
+                    </label>
+                </div>
+            </div>
+            </div>
+    </div>
+    
+    <div id="categoriesModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCategoriesModal()">&times;</span>
+            <h2>إدارة التصنيفات</h2>
+            <form id="categoryForm" class="form-card">
+                <input type="text" id="newCategoryName" placeholder="اسم التصنيف الجديد" required>
+                <div class="form-field category-icon-select">
+                    <label for="categoryIcon">اختر أيقونة:</label>
+                    <input type="text" id="categoryIcon" placeholder="أيقونة (مثال: restaurant)" readonly required onclick="openIconPicker()">
+                    <span class="material-icons selected-category-icon" id="selectedCategoryIcon">category</span>
+                </div>
+                <button type="submit"><span class="material-icons">add</span> إضافة تصنيف</button>
+            </form>
+            <h3>التصنيفات الحالية</h3>
+            <ul id="categoriesList" class="categories-list"></ul>
+        </div>
+    </div>
+
+    <div id="iconPickerModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeIconPickerModal()">&times;</span>
+            <h2>اختر أيقونة</h2>
+            <div class="icon-grid" id="iconGrid"></div>
+            <button class="full-width" onclick="closeIconPickerModal()"><span class="material-icons">check_circle</span> تم</button>
+        </div>
+    </div>
+
+    <div id="statsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeStatsModal()">&times;</span>
+            <h2>الإحصائيات</h2>
+            <canvas id="pieChart"></canvas>
+            <canvas id="barChart"></canvas>
+        </div>
+    </div>
+
+    <div id="backupModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBackupModal()">&times;</span>
+            <h2>النسخة الاحتياطية</h2>
+            <button onclick="downloadBackup()"><span class="material-icons">cloud_download</span> تحميل نسخة احتياطية</button>
+            <input type="file" id="restoreFile" accept=".json">
+            <button onclick="restoreBackup()"><span class="material-icons">cloud_upload</span> استعادة نسخة احتياطية</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
